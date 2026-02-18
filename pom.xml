@@ -17,7 +17,7 @@
     <dependencies>
         <dependency>
             <groupId>org.telegram</groupId>
-            <artifactId>telegrambots-longpolling</artifactId>
+            <artifactId>telegrambots-springboot-longpolling-starter</artifactId>
             <version>9.3.0</version>
         </dependency>
         <dependency>
@@ -29,6 +29,11 @@
             <groupId>org.telegram</groupId>
             <artifactId>telegrambots-abilities</artifactId>
             <version>9.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <version>3.5.5</version>
         </dependency>
         <dependency>
             <groupId>tools.jackson.core</groupId>

@@ -1,10 +1,15 @@
 package com.tihiyn.car_park_bot;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.Reply;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
+import org.telegram.telegrambots.longpolling.BotSession;
+import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
+import org.telegram.telegrambots.longpolling.starter.AfterBotRegistration;
+import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,16 +31,35 @@ import java.util.function.Predicate;
 
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
 
-public class ReportBot extends AbilityBot {
+@Component
+public class ReportBot extends AbilityBot implements SpringLongPollingBot {
+    private final ObjectMapper om;
     private final Map<Long, Credentials> users = new ConcurrentHashMap<>();
 
-    public ReportBot(TelegramClient telegramClient, String botUsername) {
-        super(telegramClient, botUsername);
+    @Value("${bot.token}")
+    private String token;
+    @Value("${creator-id}")
+    private Long creatorId;
+
+    public ReportBot(TelegramClient client, @Value("${bot.username}") String username, ObjectMapper om) {
+        super(client, username);
+        this.om = om;
+        this.onRegister();
     }
 
     @Override
     public long creatorId() {
-        return 715624734;
+        return creatorId;
+    }
+
+    @Override
+    public String getBotToken() {
+        return token;
+    }
+
+    @Override
+    public LongPollingUpdateConsumer getUpdatesConsumer() {
+        return this;
     }
 
     public ReplyFlow login() {
@@ -78,31 +102,6 @@ public class ReportBot extends AbilityBot {
             .build();
     }
 
-//    private boolean isCredsValid(Message msg) {
-//        String[] creds = msg.getText().split(" ");
-//        if (creds.length == 2) {
-//            HttpClient client = HttpClient.newHttpClient();
-//            String form = "username=" + URLEncoder.encode(creds[0], StandardCharsets.UTF_8)
-//                + "&password=" + URLEncoder.encode(creds[1], StandardCharsets.UTF_8);
-//            HttpRequest req = HttpRequest.newBuilder()
-//                .uri(URI.create("http://localhost:8080/auth/login"))
-//                .header("Content-Type", "application/x-www-form-urlencoded")
-//                .POST(HttpRequest.BodyPublishers.ofString(form))
-//                .build();
-//            try {
-//                HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-//                if (resp.statusCode() == 302) {
-//                    String jwt = resp.headers().firstValue("set-cookie").get().split(";")[0];
-//                    users.put(msg.getChatId(), new Credentials(creds[0], creds[1], jwt));
-//                    return true;
-//                }
-//            } catch (IOException | InterruptedException e) {
-//                return false;
-//            }
-//        }
-//        return false;
-//    }
-
     public ReplyFlow dayReport() {
         return ReplyFlow.builder(db)
             .action((bot, upd) -> {
@@ -132,7 +131,6 @@ public class ReportBot extends AbilityBot {
                         .build();
                     try {
                         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-                        ObjectMapper om = new ObjectMapper();
                         VehicleMileageReport report = om.readValue(resp.body(), VehicleMileageReport.class);
                         String answer = "";
                         for (Map.Entry<String, Long> entry: report.getResult().entrySet()) {
@@ -147,14 +145,6 @@ public class ReportBot extends AbilityBot {
                     && !upd.getMessage().getText().equalsIgnoreCase("/day_report"),
                 upd -> users.containsKey(upd.getMessage().getChatId()))
             )
-//            .next(Reply.of(
-//                (bot, upd) -> {
-//                    silent.send("Вы не вошли в систему. Для входа введите /login", getChatId(upd));
-//                },
-//                upd -> upd.hasMessage(),
-//                hasMessageWith("/day_report"),
-//                upd -> !users.containsKey(upd.getMessage().getChatId())
-//            ))
             .build();
     }
 
@@ -187,7 +177,6 @@ public class ReportBot extends AbilityBot {
                         .build();
                     try {
                         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-                        ObjectMapper om = new ObjectMapper();
                         VehicleMileageReport report = om.readValue(resp.body(), VehicleMileageReport.class);
                         String answer = "";
                         for (Map.Entry<String, Long> entry: report.getResult().entrySet()) {
@@ -207,5 +196,10 @@ public class ReportBot extends AbilityBot {
 
     private Predicate<Update> hasMessageWith(String msg) {
         return upd -> upd.getMessage().getText().equalsIgnoreCase(msg);
+    }
+
+    @AfterBotRegistration
+    public void afterRegistration(BotSession botSession) {
+        System.out.println("Registered bot running state is: " + botSession.isRunning());
     }
 }
