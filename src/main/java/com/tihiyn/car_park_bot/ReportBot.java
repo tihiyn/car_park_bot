@@ -9,7 +9,9 @@ import org.telegram.telegrambots.longpolling.BotSession;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.longpolling.starter.AfterBotRegistration;
 import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import tools.jackson.databind.ObjectMapper;
 
@@ -38,7 +40,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
 
     @Value("${bot.token}")
     private String token;
-    @Value("${creator-id}")
+    @Value("${bot.creator-id}")
     private Long creatorId;
 
     public ReportBot(TelegramClient client, @Value("${bot.username}") String username, ObjectMapper om) {
@@ -194,12 +196,25 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
             .build();
     }
 
-    private Predicate<Update> hasMessageWith(String msg) {
-        return upd -> upd.getMessage().getText().equalsIgnoreCase(msg);
+    public void sendNotification(Notification n) {
+        users.entrySet().stream()
+            .filter(entry -> n.getManagers().contains(entry.getValue().username()))
+            .map(Map.Entry::getKey)
+            .forEach(chatId -> {
+                SendMessage message = SendMessage
+                    .builder()
+                    .chatId(chatId)
+                    .text("\uD83D\uDD14 В Вашем предприятии %s появилась новая поездка для авто с номером %s.\nПункт отправления: %s.\nПункт назначения: %s.".formatted(n.getEnterprise(), n.getRegNum(), n.getStart(), n.getFinish()))
+                    .build();
+                try {
+                    telegramClient.execute(message);
+                } catch (TelegramApiException e) {
+                    throw new RuntimeException(e);
+                }
+            });
     }
 
-    @AfterBotRegistration
-    public void afterRegistration(BotSession botSession) {
-        System.out.println("Registered bot running state is: " + botSession.isRunning());
+    private Predicate<Update> hasMessageWith(String msg) {
+        return upd -> upd.getMessage().getText().equalsIgnoreCase(msg);
     }
 }

@@ -1,0 +1,7 @@
+server:
+  port: 8090
+
+bot:
+  token:
+  username: car_park_report_bot
+  creator-id:
