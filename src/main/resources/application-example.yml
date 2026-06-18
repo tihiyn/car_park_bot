@@ -2,3 +2,6 @@ bot:
   token:
   username: car_park_report_bot
   creator-id:
+app:
+  login-url:
+  mileage-report-url:

@@ -5,9 +5,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
 import org.telegram.telegrambots.abilitybots.api.objects.Reply;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
-import org.telegram.telegrambots.longpolling.BotSession;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
-import org.telegram.telegrambots.longpolling.starter.AfterBotRegistration;
 import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -42,6 +40,10 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
     private String token;
     @Value("${bot.creator-id}")
     private Long creatorId;
+    @Value("${app.login-url}")
+    private String loginUrl;
+    @Value("${app.mileage-report-url}")
+    private String mileageReportUrl;
 
     public ReportBot(TelegramClient client, @Value("${bot.username}") String username, ObjectMapper om) {
         super(client, username);
@@ -79,7 +81,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                     String form = "username=" + URLEncoder.encode(creds[0], StandardCharsets.UTF_8)
                         + "&password=" + URLEncoder.encode(creds[1], StandardCharsets.UTF_8);
                     HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create("http://localhost:8080/auth/login"))
+                        .uri(URI.create(loginUrl))
                         .header("Content-Type", "application/x-www-form-urlencoded")
                         .POST(HttpRequest.BodyPublishers.ofString(form))
                         .build();
@@ -125,7 +127,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
 
                     HttpClient client = HttpClient.newHttpClient();
                     HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create("http://localhost:8080/api/reports/vehicle/mileage?regNum=%s&period=%s&begin=%s&end=%s".formatted(regNum, period,
+                        .uri(URI.create(mileageReportUrl.formatted(regNum, period,
                             URLEncoder.encode(since.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8),
                             URLEncoder.encode(before.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8))))
                         .header("Cookie", users.get(upd.getMessage().getChatId()).jwt())
@@ -171,7 +173,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
 
                     HttpClient client = HttpClient.newHttpClient();
                     HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create("http://localhost:8080/api/reports/vehicle/mileage?regNum=%s&period=%s&begin=%s&end=%s".formatted(regNum, period,
+                        .uri(URI.create(mileageReportUrl.formatted(regNum, period,
                             URLEncoder.encode(since.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8),
                             URLEncoder.encode(before.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8))))
                         .header("Cookie", users.get(upd.getMessage().getChatId()).jwt())
