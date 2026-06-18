@@ -1,6 +1,3 @@
-server:
-  port: 8090
-
 bot:
   token: 8547551582:AAHP6PWlWdYluyaJA30EXPlTgCyVFfAKFzQ
   username: car_park_report_bot
