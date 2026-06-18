@@ -1,5 +1,6 @@
 package com.tihiyn.car_park_bot;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
@@ -8,9 +9,12 @@ import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 public class CommonConfig {
+    @Value("${bot.token}")
+    private String token;
+
     @Bean
     public TelegramClient telegramClient() {
-        return new OkHttpTelegramClient("8547551582:AAHP6PWlWdYluyaJA30EXPlTgCyVFfAKFzQ");
+        return new OkHttpTelegramClient(token);
     }
 
     @Bean

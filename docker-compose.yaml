@@ -1,0 +1,14 @@
+services:
+  car_park_bot:
+    image: car_park_bot
+    build:
+      context: .
+    expose:
+      - "8090"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+    name: app_network
