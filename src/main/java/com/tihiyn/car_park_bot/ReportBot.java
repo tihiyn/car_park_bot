@@ -1,5 +1,7 @@
 package com.tihiyn.car_park_bot;
 
+import com.tihiyn.car_park_bot.dao.ManagerChatRepository;
+import com.tihiyn.car_park_bot.dao.model.ManagerChat;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.abilitybots.api.bot.AbilityBot;
@@ -7,9 +9,7 @@ import org.telegram.telegrambots.abilitybots.api.objects.Reply;
 import org.telegram.telegrambots.abilitybots.api.objects.ReplyFlow;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,7 +26,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getChatId;
@@ -34,7 +33,7 @@ import static org.telegram.telegrambots.abilitybots.api.util.AbilityUtils.getCha
 @Component
 public class ReportBot extends AbilityBot implements SpringLongPollingBot {
     private final ObjectMapper om;
-    private final Map<Long, Credentials> users = new ConcurrentHashMap<>();
+    private final ManagerChatRepository repository;
 
     @Value("${bot.token}")
     private String token;
@@ -45,9 +44,13 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
     @Value("${app.mileage-report-url}")
     private String mileageReportUrl;
 
-    public ReportBot(TelegramClient client, @Value("${bot.username}") String username, ObjectMapper om) {
+    public ReportBot(TelegramClient client,
+                     @Value("${bot.username}") String username,
+                     ObjectMapper om,
+                     ManagerChatRepository repository) {
         super(client, username);
         this.om = om;
+        this.repository = repository;
         this.onRegister();
     }
 
@@ -93,7 +96,10 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                         }
                         if (resp.statusCode() == 302) {
                             String jwt = resp.headers().firstValue("set-cookie").get().split(";")[0];
-                            users.put(upd.getMessage().getChatId(), new Credentials(creds[0], creds[1], jwt));
+                            repository.save(new ManagerChat()
+                                .setChatId(upd.getMessage().getChatId())
+                                .setUsername(creds[0])
+                                .setJwt(jwt));
                             silent.send("Вы успешно вошли!", getChatId(upd));
                         }
                     } catch (IOException | InterruptedException e) {
@@ -109,7 +115,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
     public ReplyFlow dayReport() {
         return ReplyFlow.builder(db)
             .action((bot, upd) -> {
-                if (!users.containsKey(upd.getMessage().getChatId())) {
+                if (!repository.existsManagerChatByChatId(upd.getMessage().getChatId())) {
                     silent.send("Вы не вошли в систему. Для входа введите /login", getChatId(upd));
                     return;
                 }
@@ -130,7 +136,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                         .uri(URI.create(mileageReportUrl.formatted(regNum, period,
                             URLEncoder.encode(since.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8),
                             URLEncoder.encode(before.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8))))
-                        .header("Cookie", users.get(upd.getMessage().getChatId()).jwt())
+                        .header("Cookie", repository.findManagerChatByChatId(upd.getMessage().getChatId()).get().getJwt())
                         .GET()
                         .build();
                     try {
@@ -147,7 +153,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                 },
                 upd -> upd.hasMessage()
                     && !upd.getMessage().getText().equalsIgnoreCase("/day_report"),
-                upd -> users.containsKey(upd.getMessage().getChatId()))
+                upd -> repository.existsManagerChatByChatId(upd.getMessage().getChatId()))
             )
             .build();
     }
@@ -155,7 +161,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
     public ReplyFlow monthReport() {
         return ReplyFlow.builder(db)
             .action((bot, upd) -> {
-                if (!users.containsKey(upd.getMessage().getChatId())) {
+                if (!repository.existsManagerChatByChatId(upd.getMessage().getChatId())) {
                     silent.send("Вы не вошли в систему. Для входа введите /login", getChatId(upd));
                     return;
                 }
@@ -176,7 +182,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                         .uri(URI.create(mileageReportUrl.formatted(regNum, period,
                             URLEncoder.encode(since.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8),
                             URLEncoder.encode(before.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8))))
-                        .header("Cookie", users.get(upd.getMessage().getChatId()).jwt())
+                        .header("Cookie", repository.findManagerChatByChatId(upd.getMessage().getChatId()).get().getJwt())
                         .GET()
                         .build();
                     try {
@@ -193,27 +199,27 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                 },
                 upd -> upd.hasMessage()
                     && !upd.getMessage().getText().equalsIgnoreCase("/month_report"),
-                upd -> users.containsKey(upd.getMessage().getChatId()))
+                upd -> repository.existsManagerChatByChatId(upd.getMessage().getChatId()))
             )
             .build();
     }
 
     public void sendNotification(Notification n) {
-        users.entrySet().stream()
-            .filter(entry -> n.getManagers().contains(entry.getValue().username()))
-            .map(Map.Entry::getKey)
-            .forEach(chatId -> {
-                SendMessage message = SendMessage
-                    .builder()
-                    .chatId(chatId)
-                    .text("\uD83D\uDD14 В Вашем предприятии %s появилась новая поездка для авто с номером %s.\nПункт отправления: %s.\nПункт назначения: %s.".formatted(n.getEnterprise(), n.getRegNum(), n.getStart(), n.getFinish()))
-                    .build();
-                try {
-                    telegramClient.execute(message);
-                } catch (TelegramApiException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+//        users.entrySet().stream()
+//            .filter(entry -> n.getManagers().contains(entry.getValue().username()))
+//            .map(Map.Entry::getKey)
+//            .forEach(chatId -> {
+//                SendMessage message = SendMessage
+//                    .builder()
+//                    .chatId(chatId)
+//                    .text("\uD83D\uDD14 В Вашем предприятии %s появилась новая поездка для авто с номером %s.\nПункт отправления: %s.\nПункт назначения: %s.".formatted(n.getEnterprise(), n.getRegNum(), n.getStart(), n.getFinish()))
+//                    .build();
+//                try {
+//                    telegramClient.execute(message);
+//                } catch (TelegramApiException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            });
     }
 
     private Predicate<Update> hasMessageWith(String msg) {
