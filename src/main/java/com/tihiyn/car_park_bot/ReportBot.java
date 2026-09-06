@@ -44,6 +44,8 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
     @Value("${app.mileage-report-url}")
     private String mileageReportUrl;
 
+    private static final String USER_AGENT = "car_park_bot/1.0";
+
     public ReportBot(TelegramClient client,
                      @Value("${bot.username}") String username,
                      ObjectMapper om,
@@ -85,6 +87,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                         + "&password=" + URLEncoder.encode(creds[1], StandardCharsets.UTF_8);
                     HttpRequest req = HttpRequest.newBuilder()
                         .uri(URI.create(loginUrl))
+                        .header("User-Agent", USER_AGENT)
                         .header("Content-Type", "application/x-www-form-urlencoded")
                         .POST(HttpRequest.BodyPublishers.ofString(form))
                         .build();
@@ -136,6 +139,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                         .uri(URI.create(mileageReportUrl.formatted(regNum, period,
                             URLEncoder.encode(since.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8),
                             URLEncoder.encode(before.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8))))
+                        .header("User-Agent", USER_AGENT)
                         .header("Cookie", repository.findManagerChatByChatId(upd.getMessage().getChatId()).get().getJwt())
                         .GET()
                         .build();
@@ -182,6 +186,7 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                         .uri(URI.create(mileageReportUrl.formatted(regNum, period,
                             URLEncoder.encode(since.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8),
                             URLEncoder.encode(before.format(DateTimeFormatter.ISO_DATE_TIME), StandardCharsets.UTF_8))))
+                        .header("User-Agent", USER_AGENT)
                         .header("Cookie", repository.findManagerChatByChatId(upd.getMessage().getChatId()).get().getJwt())
                         .GET()
                         .build();
@@ -202,24 +207,6 @@ public class ReportBot extends AbilityBot implements SpringLongPollingBot {
                 upd -> repository.existsManagerChatByChatId(upd.getMessage().getChatId()))
             )
             .build();
-    }
-
-    public void sendNotification(Notification n) {
-//        users.entrySet().stream()
-//            .filter(entry -> n.getManagers().contains(entry.getValue().username()))
-//            .map(Map.Entry::getKey)
-//            .forEach(chatId -> {
-//                SendMessage message = SendMessage
-//                    .builder()
-//                    .chatId(chatId)
-//                    .text("\uD83D\uDD14 В Вашем предприятии %s появилась новая поездка для авто с номером %s.\nПункт отправления: %s.\nПункт назначения: %s.".formatted(n.getEnterprise(), n.getRegNum(), n.getStart(), n.getFinish()))
-//                    .build();
-//                try {
-//                    telegramClient.execute(message);
-//                } catch (TelegramApiException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            });
     }
 
     private Predicate<Update> hasMessageWith(String msg) {

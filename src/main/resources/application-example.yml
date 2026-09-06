@@ -1,3 +1,15 @@
+server:
+  port: 8090
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
 spring:
   application:
     name: car_park_bot
@@ -17,3 +29,6 @@ bot:
 app:
   login-url:
   mileage-report-url:
+
+alerts:
+  webhook-token:
