@@ -21,7 +21,9 @@ services:
     expose:
       - "8090"
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - car-park-bot
   bot_db:
     image: postgres:17-alpine
     environment:
