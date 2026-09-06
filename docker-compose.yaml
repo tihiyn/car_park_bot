@@ -15,7 +15,8 @@ services:
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus
       MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
       ALERTS_WEBHOOK_TOKEN: ${ALERTS_WEBHOOK_TOKEN}
-      JAVA_TOOL_OPTIONS: ${BOT_JAVA_OPTS:-}
+      PROXY_SOCKS_HOST: ${PROXY_SOCKS_HOST:-}
+      PROXY_SOCKS_PORT: ${PROXY_SOCKS_PORT:-}
     restart: unless-stopped
     expose:
       - "8090"
